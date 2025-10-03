@@ -1,0 +1,174 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: twitch_clone_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'gradle'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    # Frontend tests
+    - name: Install frontend dependencies
+      working-directory: ./apps/frontend
+      run: npm ci
+
+    - name: Run frontend tests
+      working-directory: ./apps/frontend
+      run: npm test
+
+    # User Service tests
+    - name: Build and test user-service
+      working-directory: ./apps/user-service
+      run: |
+        chmod +x gradlew
+        ./gradlew test
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/twitch_clone_test
+        SPRING_DATASOURCE_USERNAME: postgres
+        SPRING_DATASOURCE_PASSWORD: postgres
+        JWT_SECRET: test-secret
+
+    # Stream Service tests
+    - name: Test stream-service
+      working-directory: ./apps/stream-service
+      run: go test -v ./...
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/twitch_clone_test?sslmode=disable
+        REDIS_URL: redis://localhost:6379
+
+    # Chat Service tests
+    - name: Install chat-service dependencies
+      working-directory: ./apps/chat-service
+      run: npm ci
+
+    - name: Test chat-service
+      working-directory: ./apps/chat-service
+      run: npm test
+      env:
+        NODE_ENV: test
+        REDIS_URL: redis://localhost:6379
+
+    # Follow Service tests
+    - name: Install follow-service dependencies
+      working-directory: ./apps/follow-service
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Test follow-service
+      working-directory: ./apps/follow-service
+      run: python -m pytest
+      env:
+        FLASK_ENV: testing
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/twitch_clone_test
+        REDIS_URL: redis://localhost:6379
+
+  build-and-push:
+    name: Build and Push Docker Images
+    needs: test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v4
+      with:
+        push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' }}
+        tags: |
+          ${{ github.repository }}:latest
+          ${{ github.repository }}:${{ github.sha }}
+        file: ./Dockerfile
+        context: .
+
+  deploy:
+    name: Deploy to Staging/Production
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+      url: ${{ github.ref == 'refs/heads/main' && 'https://your-production-url.com' || 'https://staging.your-url.com' }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install SSH key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        known_hosts: ${{ secrets.KNOWN_HOSTS }}
+
+    - name: Deploy to server
+      run: |
+        # Add your deployment script here
+        echo "Deploying to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}..."
+        # Example: ssh user@server "cd /path/to/app && git pull && docker-compose up -d"
