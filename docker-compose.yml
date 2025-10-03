@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - api-gateway
+    networks:
+      - twitch-network
+
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    depends_on:
+      - user-service
+      - stream-service
+      - chat-service
+      - follow-service
+    networks:
+      - twitch-network
+
+  user-service:
+    build:
+      context: ./apps/user-service
+      dockerfile: Dockerfile
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/twitch_clone
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - JWT_SECRET=your_jwt_secret_key_here
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - twitch-network
+
+  stream-service:
+    build:
+      context: ./apps/stream-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      - ENV=development
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - twitch-network
+
+  chat-service:
+    build:
+      context: ./apps/chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8080"
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - twitch-network
+
+  follow-service:
+    build:
+      context: ./apps/follow-service
+      dockerfile: Dockerfile
+    ports:
+      - "8084:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/twitch_clone
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - twitch-network
+
+  nginx-rtmp:
+    image: tiangolo/nginx-rtmp
+    ports:
+      - "1935:1935" 
+      - "8081:80" 
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - twitch-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=twitch_clone
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - twitch-network
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass your_redis_password
+    volumes:
+      - redis_data:/data
+    networks:
+      - twitch-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - twitch-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - twitch-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafana_data:
+
+networks:
+  twitch-network:
+    driver: bridge
