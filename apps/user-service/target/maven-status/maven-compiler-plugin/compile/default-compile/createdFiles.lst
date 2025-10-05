@@ -7,6 +7,5 @@ com/twitch/clone/userservice/model/User.class
 com/twitch/clone/userservice/model/ERole.class
 com/twitch/clone/userservice/security/WebSecurityConfig.class
 com/twitch/clone/userservice/security/jwt/AuthEntryPointJwt.class
-com/twitch/clone/userservice/security/jwt/AuthTokenFilter.class
 com/twitch/clone/userservice/security/services/UserDetailsServiceImpl.class
 com/twitch/clone/userservice/UserServiceApplication.class

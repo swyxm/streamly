@@ -39,19 +39,27 @@ public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
     public String authenticateUser(String username, String password) {
-        logger.info("Starting authentication for user: {}", username);
+        logger.info("🔑 Starting authentication for user: {}", username);
+        logger.debug("Received password: [REDACTED]");
         
         try {
-            logger.info("Looking up user in database: {}", username);
+            logger.info("🔍 Looking up user in database: {}", username);
             User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> {
-                    logger.error("User not found: {}", username);
+                    logger.error("❌ User not found in database: {}", username);
                     return new RuntimeException("Invalid username or password");
                 });
             
-            logger.info("User found, checking password for: {}", username);
-            if (!encoder.matches(password, user.getPassword())) {
-                logger.error("Invalid password for user: {}", username);
+            logger.info("✅ User found in database. User ID: {}, Username: {}", user.getId(), user.getUsername());
+            logger.debug("Stored password hash: {}", user.getPassword());
+            
+            logger.info("🔑 Verifying password for user: {}", username);
+            boolean passwordMatches = encoder.matches(password, user.getPassword());
+            logger.info("🔑 Password verification result for {}: {}", username, passwordMatches ? "MATCH" : "NO MATCH");
+            
+            if (!passwordMatches) {
+                logger.error("❌ Invalid password for user: {}", username);
+                logger.debug("Provided password: [REDACTED], Stored hash: {}", user.getPassword());
                 throw new RuntimeException("Invalid username or password");
             }
             
