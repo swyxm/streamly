@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Badge } from './badge';
+import { Button } from './button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu';
+import { useAuth } from '@/lib/auth-context';
+import { useAuthStore } from '@/stores/auth';
+import { SearchBar } from './search-bar';
+import { UserProfile } from './user-profile';
 import {
   Menu,
   Bell,
@@ -44,10 +50,18 @@ export function Header({
   className = '',
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { isAuthenticated, user } = useAuth();
+  const { logout } = useAuthStore();
+  const router = useRouter();
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     onSearch?.(query);
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
   };
 
   return (
@@ -105,12 +119,19 @@ export function Header({
             )}
           </Button>
 
-          {currentUser ? (
+          {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2 px-2">
                   <UserProfile
-                    user={currentUser}
+                    user={{
+                      id: user?.id?.toString() || '',
+                      username: user?.username || '',
+                      displayName: user?.displayName,
+                      avatar: user?.avatarUrl,
+                      isVerified: user?.isVerified || false,
+                      followerCount: 0,
+                    }}
                     variant="compact"
                     showStats={false}
                   />
@@ -119,8 +140,8 @@ export function Header({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{currentUser.displayName || currentUser.username}</p>
-                  <p className="text-xs text-muted-foreground">@{currentUser.username}</p>
+                  <p className="text-sm font-medium">{user?.displayName || user?.username}</p>
+                  <p className="text-xs text-muted-foreground">@{user?.username}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
@@ -132,7 +153,7 @@ export function Header({
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogIn className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
@@ -140,12 +161,16 @@ export function Header({
             </DropdownMenu>
           ) : (
             <div className="flex items-center space-x-2">
-              <Button variant="ghost">
-                <LogIn className="w-4 h-4 mr-2" />
-                Sign In
+              <Button variant="ghost" asChild>
+                <Link href="/login">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign In
+                </Link>
               </Button>
-              <Button>
-                Sign Up
+              <Button asChild>
+                <Link href="/register">
+                  Sign Up
+                </Link>
               </Button>
             </div>
           )}
