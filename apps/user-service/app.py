@@ -11,9 +11,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
-app.config['JSON_SORT_KEYS'] = False  
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-app.config['DB_URL'] = os.getenv('DB_URL', 'postgresql://postgres:postgres@postgres:5432/twitch_clone_user')
+app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your_jwt_secret_key_here')
+app.config['DB_URL'] = os.getenv('DB_URL')
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(hours=1)
 
 bcrypt = Bcrypt(app)
 
