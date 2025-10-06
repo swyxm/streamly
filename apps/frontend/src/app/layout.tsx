@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { AuthProvider } from '@/contexts/AuthContext';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -72,18 +73,16 @@ export default function RootLayout({
 // Providers component to wrap the app with necessary context providers
 function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <>
-      {/* Add your providers here */}
+    <AuthProvider>
+      {/* Add your other providers here */}
       {/* Example: 
         <QueryProvider>
-          <AuthProvider>
-            <ThemeProvider>
-              {children}
-            </ThemeProvider>
-          </AuthProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
         </QueryProvider>
       */}
       {children}
-    </>
+    </AuthProvider>
   );
 }

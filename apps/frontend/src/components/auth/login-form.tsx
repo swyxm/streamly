@@ -6,11 +6,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuthStore } from '@/stores/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
+  email: z.string().email('Invalid email address').min(1, 'Email is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -18,13 +19,14 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const login = useAuthStore((state) => state.login);
+  const { login, error } = useAuth();
+  const router = useRouter();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
+    setError: setFormError,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
@@ -32,11 +34,13 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      await login(data);
+      await login(data.email, data.password);
       toast.success('Successfully logged in!');
-      reset();
-    } catch (error) {
-      toast.error('Login failed. Please check your credentials.');
+      router.push('/');
+    } catch (err) {
+      const errorMessage = error || 'Login failed. Please check your credentials.';
+      toast.error(errorMessage);
+      setFormError('root', { message: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -46,19 +50,26 @@ export function LoginForm() {
     <div className="w-full max-w-md mx-auto">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
           <Input
-            {...register('username')}
-            type="text"
-            placeholder="Username"
-            className="w-full"
+            id="email"
+            type="email"
+            {...register('email')}
+            className={`mt-1 block w-full ${errors.email ? 'border-red-500' : ''}`}
+            placeholder="Enter your email"
             disabled={isLoading}
           />
-          {errors.username && (
-            <p className="text-sm text-red-600 mt-1">{errors.username.message}</p>
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
           )}
         </div>
 
         <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            Password
+          </label>
           <Input
             {...register('password')}
             type="password"

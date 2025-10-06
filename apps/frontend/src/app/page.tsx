@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { UserAccount } from '../components/auth/user-account';
 import {
   Home as HomeIcon,
   Compass,
@@ -136,10 +137,7 @@ export default function Home() {
           </nav>
 
           <div className="p-4 border-t border-border">
-            <Button className="w-full" variant="outline">
-              <LogIn className="w-4 h-4 mr-2" />
-              Sign In
-            </Button>
+            <UserAccount />
           </div>
         </aside>
 
@@ -196,10 +194,7 @@ export default function Home() {
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Settings className="h-5 w-5" />
                 </Button>
-                <Button variant="outline" className="rounded-full">
-                  <User className="h-5 w-5 mr-2" />
-                  Sign In
-                </Button>
+                <UserAccount />
               </div>
             </div>
           </header>

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuthStore } from '@/stores/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const registerSchema = z.object({
@@ -21,6 +21,8 @@ const registerSchema = z.object({
     .max(100, 'Password must be less than 100 characters'),
   confirmPassword: z.string()
     .min(1, 'Please confirm your password'),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -30,7 +32,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const registerUser = useAuthStore((state) => state.register);
+  const { register: registerUser, error } = useAuth();
 
   const {
     register,
@@ -48,11 +50,13 @@ export function RegisterForm() {
         username: data.username,
         email: data.email,
         password: data.password,
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
       });
-      toast.success('Account created successfully! Please log in.');
+      toast.success('Account created successfully!');
       reset();
     } catch (error) {
-      toast.error('Registration failed. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -84,6 +88,32 @@ export function RegisterForm() {
           />
           {errors.email && (
             <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>
+          )}
+        </div>
+
+        <div>
+          <Input
+            {...register('firstName')}
+            type="text"
+            placeholder="First Name (optional)"
+            className="w-full"
+            disabled={isLoading}
+          />
+          {errors.firstName && (
+            <p className="text-sm text-red-600 mt-1">{errors.firstName.message}</p>
+          )}
+        </div>
+
+        <div>
+          <Input
+            {...register('lastName')}
+            type="text"
+            placeholder="Last Name (optional)"
+            className="w-full"
+            disabled={isLoading}
+          />
+          {errors.lastName && (
+            <p className="text-sm text-red-600 mt-1">{errors.lastName.message}</p>
           )}
         </div>
 
