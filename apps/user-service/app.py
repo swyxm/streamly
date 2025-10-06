@@ -3,6 +3,7 @@ import psycopg2
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_bcrypt import Bcrypt
+from flask_cors import CORS
 import jwt as pyjwt
 import datetime
 from functools import wraps
@@ -11,7 +12,15 @@ load_dotenv()
 
 app = Flask(__name__)
 
-app = Flask(__name__)
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }
+})
+
 app.config['JSON_SORT_KEYS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your_jwt_secret_key_here')
 app.config['DB_URL'] = os.getenv('DB_URL')
