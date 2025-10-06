@@ -1,6 +1,12 @@
-FROM eclipse-temurin:17-jre-jammy
+FROM python:3.9-slim
 
 WORKDIR /app
-COPY docker-build/app.jar app.jar
+
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
+COPY . .
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+
+CMD ["python", "app.py"]

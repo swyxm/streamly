@@ -1,11 +1,17 @@
 com/twitch/clone/userservice/repository/RoleRepository.class
 com/twitch/clone/userservice/security/services/UserDetailsImpl.class
+com/twitch/clone/userservice/service/AuthService.class
+com/twitch/clone/userservice/util/GenerateBCryptHash.class
 com/twitch/clone/userservice/repository/UserRepository.class
 com/twitch/clone/userservice/model/Role.class
 com/twitch/clone/userservice/security/jwt/JwtUtils.class
 com/twitch/clone/userservice/model/User.class
+com/twitch/clone/userservice/controller/AuthController$SignupRequest.class
 com/twitch/clone/userservice/model/ERole.class
+com/twitch/clone/userservice/controller/AuthController.class
 com/twitch/clone/userservice/security/WebSecurityConfig.class
 com/twitch/clone/userservice/security/jwt/AuthEntryPointJwt.class
+com/twitch/clone/userservice/security/jwt/AuthTokenFilter.class
+com/twitch/clone/userservice/controller/AuthController$LoginRequest.class
 com/twitch/clone/userservice/security/services/UserDetailsServiceImpl.class
 com/twitch/clone/userservice/UserServiceApplication.class
