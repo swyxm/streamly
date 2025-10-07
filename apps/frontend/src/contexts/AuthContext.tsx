@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, authService } from '@/lib/api';
+import { User, authService, streamService, Stream, StreamResponse, StreamsResponse } from '@/lib/api';
 
 const setAuthToken = (token: string | null) => {
   if (token) {
@@ -30,6 +30,10 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   error: string | null;
+  currentStream: Stream | null;
+  generateStreamKey: () => Promise<StreamResponse>;
+  stopStream: () => Promise<void>;
+  refreshStreams: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentStream, setCurrentStream] = useState<Stream | null>(null);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -48,6 +53,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const userData = await authService.getCurrentUser(storedToken);
           setUser(userData);
           setToken(storedToken);
+          try {
+            const streamsData = await streamService.getUserStreams(storedToken);
+            const activeStream = streamsData.streams.find(s => s.status === 'active');
+            if (activeStream) {
+              setCurrentStream(activeStream);
+            }
+          } catch (streamError) {
+            console.error('Failed to fetch streams', streamError);
+          }
         } catch (err) {
           console.error('Failed to fetch user', err);
           setAuthToken(null);
@@ -118,12 +132,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAuthToken(null);
     setUser(null);
     setToken(null);
+    setCurrentStream(null);
+  };
+
+  const generateStreamKey = async (): Promise<StreamResponse> => {
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const response = await streamService.generateStreamKey(token);
+      if (response.stream.status === 'active') {
+        setCurrentStream(response.stream);
+      }
+      return response;
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const stopStream = async (): Promise<void> => {
+    if (!token) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      await streamService.stopStream(token);
+      setCurrentStream(null);
+    } catch (err) {
+      throw err;
+    }
+  };
+
+  const refreshStreams = async (): Promise<void> => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const streamsData = await streamService.getUserStreams(token);
+      const activeStream = streamsData.streams.find(s => s.status === 'active');
+      setCurrentStream(activeStream || null);
+    } catch (err) {
+      console.error('Failed to refresh streams', err);
+    }
   };
 
   const isAuthenticated = !!user && !!token;
 
   return (
-    <AuthContext.Provider 
+    <AuthContext.Provider
       value={{
         user,
         token,
@@ -133,6 +191,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         loading,
         error,
+        currentStream,
+        generateStreamKey,
+        stopStream,
+        refreshStreams,
       }}
     >
       {children}

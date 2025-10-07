@@ -1,4 +1,5 @@
 const API_BASE_URL = 'http://localhost:8080/api';
+const STREAM_API_BASE_URL = 'http://localhost:8082/api';
 
 export interface User {
   id: number;
@@ -15,6 +16,26 @@ export interface AuthResponse {
   user?: User;
   message?: string;
   userId?: number;
+}
+
+export interface Stream {
+  id: number;
+  stream_key: string;
+  status: string;
+  created_at: string;
+  updated_at?: string;
+  expires_at?: string;
+  rtmp_url: string;
+  hls_url: string;
+}
+
+export interface StreamResponse {
+  message: string;
+  stream: Stream;
+}
+
+export interface StreamsResponse {
+  streams: Stream[];
 }
 
 export const authService = {
@@ -67,6 +88,57 @@ export const authService = {
 
     if (!response.ok) {
       throw new Error('Failed to fetch user');
+    }
+
+    return response.json();
+  },
+};
+
+export const streamService = {
+  async generateStreamKey(token: string): Promise<StreamResponse> {
+    const response = await fetch(`${STREAM_API_BASE_URL}/streams/generate-key`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to generate stream key');
+    }
+
+    return response.json();
+  },
+
+  async stopStream(token: string): Promise<{ message: string; stream_id: number; stream_key: string }> {
+    const response = await fetch(`${STREAM_API_BASE_URL}/streams/stop`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to stop stream');
+    }
+
+    return response.json();
+  },
+
+  async getUserStreams(token: string): Promise<StreamsResponse> {
+    const response = await fetch(`${STREAM_API_BASE_URL}/streams`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch streams');
     }
 
     return response.json();
