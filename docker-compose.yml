@@ -1,152 +1,83 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./apps/frontend
-      dockerfile: Dockerfile.dev
+  postgres:
+    image: postgres:15-alpine
+    container_name: streamly-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: streamly_users
     ports:
-      - "3000:3000"
+      - "5432:5432"
     volumes:
-      - ./apps/frontend:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-    depends_on:
-      - api-gateway
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
-      - twitch-network
-
-  api-gateway:
-    build:
-      context: ./apps/api-gateway
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=dev
-    depends_on:
-      - user-service
-      - stream-service
-      - chat-service
-      - follow-service
-    networks:
-      - twitch-network
+      - streamly-network
 
   user-service:
     build:
       context: ./apps/user-service
       dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/twitch_clone
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=postgres
-      - JWT_SECRET=your_jwt_secret_key_here
+      - DB_URL=postgresql://postgres:postgres@postgres:5432/streamly_users
+      - SECRET_KEY=${JWT_SECRET:-your_jwt_secret_key_here}
+      - FLASK_DEBUG=${FLASK_DEBUG:-false}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/user-service:/app
+      - /app/__pycache__
     networks:
-      - twitch-network
+      - streamly-network
 
   stream-service:
     build:
       context: ./apps/stream-service
       dockerfile: Dockerfile
+    container_name: stream-service
     ports:
-      - "8082:8080"
+      - "8082:8082"
     environment:
-      - ENV=development
+      - DB_URL=postgresql://postgres:postgres@postgres:5432/streamly_users
+      - SECRET_KEY=${JWT_SECRET:-your_jwt_secret_key_here}
+      - FLASK_DEBUG=${FLASK_DEBUG:-false}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/stream-service:/app
+      - /app/__pycache__
     networks:
-      - twitch-network
-
-  chat-service:
-    build:
-      context: ./apps/chat-service
-      dockerfile: Dockerfile
-    ports:
-      - "8083:8080"
-    environment:
-      - NODE_ENV=development
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - redis
-    networks:
-      - twitch-network
-
-  follow-service:
-    build:
-      context: ./apps/follow-service
-      dockerfile: Dockerfile
-    ports:
-      - "8084:5000"
-    environment:
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/twitch_clone
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - twitch-network
+      - streamly-network
 
   nginx-rtmp:
-    image: tiangolo/nginx-rtmp
+    image: nginx:alpine
+    container_name: nginx-rtmp
     ports:
-      - "1935:1935" 
-      - "8081:80" 
+      - "1935:1935"  
+      - "8083:8080" 
     volumes:
-      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx-rtmp.conf:/etc/nginx/nginx.conf:ro
+      - hls_data:/tmp/hls
+      - stream_data:/tmp/record
     networks:
-      - twitch-network
+      - streamly-network
 
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=twitch_clone
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - twitch-network
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --requirepass your_redis_password
-    volumes:
-      - redis_data:/data
-    networks:
-      - twitch-network
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - twitch-network
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    networks:
-      - twitch-network
+networks:
+  streamly-network:
+    driver: bridge
 
 volumes:
   postgres_data:
-  redis_data:
-  grafana_data:
-
-networks:
-  twitch-network:
-    driver: bridge
+  hls_data:
+  stream_data:
