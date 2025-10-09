@@ -10,4 +10,5 @@ develop-eggs/
 dist/
 downloads/
 eggs/
+.env
 .eggs/
