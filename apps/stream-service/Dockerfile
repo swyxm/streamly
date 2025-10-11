@@ -8,12 +8,14 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
+
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
 
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
 USER app
 
 EXPOSE 8082
 
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8082", "--worker-class", "gevent", "--workers", "4", "--timeout", "120", "app:app"]

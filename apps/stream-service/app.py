@@ -12,20 +12,42 @@ load_dotenv()
 
 app = Flask(__name__)
 
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
+CORS(app, 
+     resources={
+         r"/api/*": {
+             "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"],
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization"],
+             "supports_credentials": True
+         },
+         r"/api/streams/public": {
+             "origins": "*",
+             "methods": ["GET", "OPTIONS"],
+             "allow_headers": ["Content-Type"]
+         },
+         r"/api/streams/.*": {
+             "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"],
+             "methods": ["GET", "OPTIONS"],
+             "allow_headers": ["Content-Type"]
+         }
+     },
+     supports_credentials=True)
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'streaming_secret_key')
 app.config['DB_URL'] = os.getenv('DB_URL')
 
 def get_db_connection():
-    return psycopg2.connect(app.config['DB_URL'])
+    try:
+        db_url = os.getenv('DB_URL')
+        if not db_url:
+            raise ValueError("DB_URL environment variable is not set")
+            
+        app.logger.info(f"Connecting to database...")
+        return psycopg2.connect(db_url)
+        
+    except Exception as e:
+        app.logger.error(f"Database connection error: {str(e)}", exc_info=True)
+        raise
 
 def token_required(f):
     @wraps(f)
@@ -99,7 +121,7 @@ def generate_stream_key():
                             'stream_key': existing_stream[1],
                             'status': existing_stream[2],
                             'rtmp_url': f'rtmp://localhost:1935/live/{existing_stream[1]}',
-                            'hls_url': f'http://localhost:8083/hls/{existing_stream[1]}.m3u8'
+                            'hls_url': f'http://localhost:8083/live/{existing_stream[1]}/index.m3u8'
                         }
                     }), 409
                 cursor.execute('''
@@ -117,7 +139,7 @@ def generate_stream_key():
                         'stream_key': result[1],
                         'status': result[2],
                         'rtmp_url': f'rtmp://localhost:1935/live/{result[1]}',
-                        'hls_url': f'http://localhost:8083/hls/{result[1]}.m3u8',
+                        'hls_url': f'http://localhost:8083/live/{result[1]}/index.m3u8',
                         'expires_at': expires_at.isoformat()
                     }
                 }), 201
@@ -164,14 +186,51 @@ def get_user_streams():
     try:
         user_id = request.current_user['id']
 
+        try:
+            conn = get_db_connection()
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute('''
+                        SELECT id, stream_key, status, created_at, updated_at, expires_at
+                        FROM streams
+                        WHERE user_id = %s
+                        ORDER BY created_at DESC
+                    ''', (user_id,))
+
+                    streams = cursor.fetchall()
+
+                    return jsonify({
+                        'streams': [
+                            {
+                                'id': stream[0],
+                                'stream_key': stream[1],
+                                'status': stream[2],
+                                'created_at': stream[3].isoformat() if stream[3] else None,
+                                'updated_at': stream[4].isoformat() if stream[4] else None,
+                                'expires_at': stream[5].isoformat() if stream[5] else None,
+                                'rtmp_url': f'rtmp://localhost:1935/live/{stream[1]}',
+                                'hls_url': f'http://localhost:8083/live/{stream[1]}/index.m3u8'
+                            }
+                            for stream in streams
+                        ]
+                    }), 200
+
+        except psycopg2.Error as e:
+            return jsonify({"error": "Database error"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/streams/public', methods=['GET'])
+def get_public_streams():
+    try:
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute('''
                     SELECT id, stream_key, status, created_at, updated_at, expires_at
                     FROM streams
-                    WHERE user_id = %s
+                    WHERE status = 'active' AND expires_at > NOW()
                     ORDER BY created_at DESC
-                ''', (user_id,))
+                ''')
 
                 streams = cursor.fetchall()
 
@@ -185,7 +244,7 @@ def get_user_streams():
                             'updated_at': stream[4].isoformat() if stream[4] else None,
                             'expires_at': stream[5].isoformat() if stream[5] else None,
                             'rtmp_url': f'rtmp://localhost:1935/live/{stream[1]}',
-                            'hls_url': f'http://localhost:8083/hls/{stream[1]}.m3u8'
+                            'hls_url': f'http://localhost:8083/live/{stream[1]}/index.m3u8'
                         }
                         for stream in streams
                     ]
@@ -195,6 +254,40 @@ def get_user_streams():
         return jsonify({"error": "Database error"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/streams/<stream_key>', methods=['GET'])
+def get_stream_by_key(stream_key):
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute('''
+                    SELECT id, stream_key, status, created_at, updated_at, expires_at
+                    FROM streams
+                    WHERE stream_key = %s
+                ''', (stream_key,))
+
+                stream = cursor.fetchone()
+
+                if not stream:
+                    return jsonify({"error": "Stream not found"}), 404
+
+                return jsonify({
+                    'id': stream[0],
+                    'stream_key': stream[1],
+                    'status': stream[2],
+                    'created_at': stream[3].isoformat() if stream[3] else None,
+                    'updated_at': stream[4].isoformat() if stream[4] else None,
+                    'expires_at': stream[5].isoformat() if stream[5] else None,
+                    'rtmp_url': f'rtmp://localhost:1935/live/{stream[1]}',
+                    'hls_url': f'http://localhost:8083/live/{stream[1]}/index.m3u8'
+                }), 200
+
+    except psycopg2.Error as e:
+        return jsonify({"error": "Database error"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', '8082'))
