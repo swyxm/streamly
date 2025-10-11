@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -24,13 +22,12 @@ services:
     build:
       context: ./apps/user-service
       dockerfile: Dockerfile
-    container_name: user-service
+    container_name: streamly-user-service
     ports:
       - "8080:8080"
     environment:
-      - DB_URL=postgresql://postgres:postgres@postgres:5432/streamly_users
-      - SECRET_KEY=${JWT_SECRET:-your_jwt_secret_key_here}
-      - FLASK_DEBUG=${FLASK_DEBUG:-false}
+      - DB_URL=postgresql://postgres:postgres@postgres:5432/streamly_users?sslmode=disable
+      - SECRET_KEY=streamly_secure_secret_key_123
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,34 +41,31 @@ services:
     build:
       context: ./apps/stream-service
       dockerfile: Dockerfile
-    container_name: stream-service
+    container_name: streamly-stream-service
     ports:
       - "8082:8082"
     environment:
-      - DB_URL=postgresql://postgres:postgres@postgres:5432/streamly_users
-      - SECRET_KEY=${JWT_SECRET:-your_jwt_secret_key_here}
-      - FLASK_DEBUG=${FLASK_DEBUG:-false}
+      - DB_URL=postgresql://postgres:postgres@postgres:5432/streamly_users?sslmode=disable
+      - SECRET_KEY=streamly_secure_secret_key_123
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     volumes:
       - ./apps/stream-service:/app
       - /app/__pycache__
     networks:
       - streamly-network
 
-  nginx-rtmp:
-    image: nginx:alpine
-    container_name: nginx-rtmp
+  rtmp-server:
+    build:
+      context: ./apps/rtmp-server
+      dockerfile: Dockerfile
+    container_name: streamly-rtmp-server
     ports:
-      - "1935:1935"  
-      - "8083:8080" 
-    volumes:
-      - ./nginx-rtmp.conf:/etc/nginx/nginx.conf:ro
-      - hls_data:/tmp/hls
-      - stream_data:/tmp/record
+      - "1935:1935"
+      - "8083:8000"
     networks:
       - streamly-network
+    restart: unless-stopped
 
 networks:
   streamly-network:
@@ -79,5 +73,3 @@ networks:
 
 volumes:
   postgres_data:
-  hls_data:
-  stream_data:
