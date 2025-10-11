@@ -15,26 +15,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Twitch Clone - Live Streaming Platform",
+  title: "Streamly - Live Streaming Platform",
   description: "A full-featured live streaming platform built with Next.js and modern web technologies.",
-  keywords: ["live streaming", "twitch clone", "gaming", "esports", "live video"],
-  authors: [{ name: "Your Name", url: "https://yourwebsite.com" }],
-  creator: "Your Name",
-  publisher: "Your Company",
+  keywords: ["live streaming", "twitch clone", "gaming", "esports", "live video", "streamly"],
+  authors: [{ name: "Swayam Parekh", url: "https://swym.dev" }],
+  creator: "Swayam Parekh",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   openGraph: {
     type: "website",
     locale: "en_US",
     url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-    siteName: "Twitch Clone",
-    title: "Twitch Clone - Live Streaming Platform",
+    siteName: "Streamly",
+    title: "Streamly - Live Streaming Platform",
     description: "A full-featured live streaming platform built with Next.js and modern web technologies.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Twitch Clone - Live Streaming Platform",
+    title: "Streamly - Live Streaming Platform",
     description: "A full-featured live streaming platform built with Next.js and modern web technologies.",
-    creator: "@yourtwitter",
+    creator: "@swyxm",
   },
 };
 
@@ -49,6 +48,8 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+import { AppLayout } from '@/components/layout/AppLayout';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -60,9 +61,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground min-h-screen`}
       >
         <Providers>
-          <div className="flex flex-col min-h-screen">
+          <AppLayout>
             {children}
-          </div>
+          </AppLayout>
         </Providers>
         <Toaster position="top-right" richColors closeButton />
       </body>
@@ -70,17 +71,12 @@ export default function RootLayout({
   );
 }
 
-// Providers component to wrap the app with necessary context providers
 function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      {/* Add your other providers here */}
-      {/* Example: 
-        <QueryProvider>
+      {/*
           <ThemeProvider>
-            {children}
           </ThemeProvider>
-        </QueryProvider>
       */}
       {children}
     </AuthProvider>
