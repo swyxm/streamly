@@ -8,6 +8,8 @@ import { Button } from './button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
 import { SearchBar } from './search-bar';
+import { Skeleton } from './skeleton';
+import { UserAvatar } from './user-avatar';
 
 import {
   Menu,
