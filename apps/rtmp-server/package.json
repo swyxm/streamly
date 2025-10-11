@@ -1,0 +1,12 @@
+{
+  "name": "node-media-server-tutorial",
+  "version": "1.0.0",
+  "description": "Node Media Server implementation following tutorial",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-media-server": "^2.3.8"
+  }
+}
