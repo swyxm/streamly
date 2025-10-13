@@ -7,7 +7,7 @@ interface HLSPlayerProps {
 
 export default function HLSPlayer({ src, className = '' }: HLSPlayerProps) {
   const streamKey = src.split('/').filter(Boolean).pop()?.replace('/index.m3u8', '');
-    const encodedSrc = encodeURIComponent(src);
+  const encodedSrc = encodeURIComponent(src);
   const hlsPlayerUrl = `https://hlsplayer.net/embed?type=m3u8&src=${encodedSrc}`;
   
   return (
