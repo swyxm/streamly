@@ -91,7 +91,7 @@ export function UserAccount() {
         <div className="px-2 py-1.5">
           <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Streaming</p>
 
-          {currentStream ? (
+          {currentStream && isAuthenticated ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm">Status: <span className="text-green-600 font-medium">Live</span></span>

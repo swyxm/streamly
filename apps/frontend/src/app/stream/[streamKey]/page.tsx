@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import HLSPlayer from '@/components/HLSPlayer';
+import { Chat } from '@/components/Chat';
 
 interface Stream {
   id: number;
@@ -77,32 +78,15 @@ export default function StreamPage() {
         </div>
       </div>
 
-      <div className="bg-black rounded-lg overflow-hidden">
-        <HLSPlayer 
-          src={stream.hls_url}
-          className="w-full h-full"
-        />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <h3 className="text-xl font-semibold mb-4">Stream Info</h3>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p><strong>Status:</strong> {stream.status}</p>
-            <p><strong>Stream Key:</strong> {stream.stream_key}</p>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="lg:col-span-3 bg-black rounded-lg overflow-hidden aspect-video">
+          <HLSPlayer
+            src={stream.hls_url}
+            className="w-full h-full"
+          />
         </div>
-
-        <div>
-          <h3 className="text-xl font-semibold mb-4">Actions</h3>
-          <div className="space-y-2">
-            <button className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-              Share Stream
-            </button>
-            <button className="w-full bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
-              Report Stream
-            </button>
-          </div>
+        <div className="lg:col-span-1">
+          <Chat streamKey={streamKey} />
         </div>
       </div>
     </div>

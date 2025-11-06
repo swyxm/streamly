@@ -58,14 +58,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const activeStream = streamsData.streams.find(s => s.status === 'active');
             if (activeStream) {
               setCurrentStream(activeStream);
+            } else {
+              setCurrentStream(null);
             }
           } catch (streamError) {
             console.error('Failed to fetch streams', streamError);
+            setCurrentStream(null);
           }
         } catch (err) {
           console.error('Failed to fetch user', err);
           setAuthToken(null);
+          setUser(null);
+          setToken(null);
+          setCurrentStream(null);
         }
+      } else {
+        setCurrentStream(null);
       }
       setLoading(false);
     };
@@ -152,20 +160,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const stopStream = async (): Promise<void> => {
-    if (!token) {
-      throw new Error('Not authenticated');
+    const authenticated = !!user && !!token;
+    if (!token || !authenticated) {
+      setCurrentStream(null);
+      throw new Error('You must be logged in to stop streaming. Please log in and try again.');
     }
 
     try {
       await streamService.stopStream(token);
       setCurrentStream(null);
     } catch (err) {
+      if (err instanceof Error && (err.message.includes('Failed to stop stream') || err.message.includes('Not authenticated'))) {
+        setCurrentStream(null);
+      }
       throw err;
     }
   };
 
   const refreshStreams = async (): Promise<void> => {
-    if (!token) {
+    const authenticated = !!user && !!token;
+    if (!token || !authenticated) {
+      setCurrentStream(null);
       return;
     }
 
@@ -175,6 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setCurrentStream(activeStream || null);
     } catch (err) {
       console.error('Failed to refresh streams', err);
+      setCurrentStream(null);
     }
   };
 

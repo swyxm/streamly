@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface Stream {
   id: number;
@@ -12,10 +14,12 @@ interface Stream {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [streams, setStreams] = useState<Stream[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [directStreamKey, setDirectStreamKey] = useState('');
 
   useEffect(() => {
     const fetchStreams = async () => {
@@ -24,6 +28,7 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           setStreams(data.streams || []);
+          setError(null);
         } else {
           setError('Failed to fetch streams');
         }
@@ -35,11 +40,20 @@ export default function Home() {
     };
 
     fetchStreams();
+    const interval = setInterval(fetchStreams, 60000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const filteredStreams = streams.filter(stream =>
     stream.stream_key.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleDirectAccess = () => {
+    if (directStreamKey.trim()) {
+      router.push(`/stream/${directStreamKey.trim()}`);
+    }
+  };
 
   return (
     <>
@@ -65,6 +79,37 @@ export default function Home() {
       ) : error ? (
         <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-6 text-center">
           <p className="text-destructive">{error}</p>
+        </div>
+      ) : filteredStreams.length === 0 ? (
+        <div className="rounded-xl bg-muted/50 border border-border p-12 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="text-6xl mb-4">📺</div>
+            <h3 className="text-xl font-semibold mb-2">No Live Streams</h3>
+            <p className="text-muted-foreground mb-4">
+              {streams.length === 0 
+                ? "There are no active streams at the moment. Check back later!"
+                : "No streams match your search."}
+            </p>
+            {streams.length === 0 && (
+              <>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Want to start streaming? Sign in and generate your stream key!
+                </p>
+                <div className="flex gap-2 max-w-sm mx-auto">
+                  <Input
+                    placeholder="Enter stream key to access directly"
+                    value={directStreamKey}
+                    onChange={(e) => setDirectStreamKey(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleDirectAccess()}
+                    className="flex-1"
+                  />
+                  <Button onClick={handleDirectAccess} disabled={!directStreamKey.trim()}>
+                    Go
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
